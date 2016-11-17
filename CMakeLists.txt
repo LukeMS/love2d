@@ -200,9 +200,6 @@ Please see http://bitbucket.org/rude/megasource
 		${LOVE_LUA_LIBRARY}
 	)
 	
-	# Work-around for gcc bug 1568899.
-	set(LOVE_LINK_LIBRARIES ${LOVE_LINK_LIBRARIES} gcc_s gcc)
-
 	if(LOVE_MPG123)
 		find_package(MPG123 REQUIRED)
 		set(LOVE_LINK_LIBRARIES
@@ -818,6 +815,7 @@ source_group("modules\\physics\\box2d" FILES ${LOVE_SRC_MODULE_PHYSICS_BOX2D})
 #
 
 set(LOVE_SRC_MODULE_SOUND_ROOT
+	src/modules/sound/Decoder.cpp
 	src/modules/sound/Decoder.h
 	src/modules/sound/Sound.cpp
 	src/modules/sound/Sound.h
@@ -832,8 +830,6 @@ set(LOVE_SRC_MODULE_SOUND_ROOT
 )
 
 set(LOVE_SRC_MODULE_SOUND_LULLABY
-	src/modules/sound/lullaby/Decoder.cpp
-	src/modules/sound/lullaby/Decoder.h
 	src/modules/sound/lullaby/FLACDecoder.cpp
 	src/modules/sound/lullaby/FLACDecoder.h
 	src/modules/sound/lullaby/GmeDecoder.cpp
@@ -1254,23 +1250,27 @@ set(LOVE_SRC_3P_LUASOCKET_LIBLUASOCKET
 	src/libraries/luasocket/libluasocket/auxiliar.h
 	src/libraries/luasocket/libluasocket/buffer.c
 	src/libraries/luasocket/libluasocket/buffer.h
+	src/libraries/luasocket/libluasocket/compat.c
+	src/libraries/luasocket/libluasocket/compat.h
 	src/libraries/luasocket/libluasocket/except.c
 	src/libraries/luasocket/libluasocket/except.h
 	src/libraries/luasocket/libluasocket/ftp.lua.h
+	src/libraries/luasocket/libluasocket/headers.lua.h
 	src/libraries/luasocket/libluasocket/http.lua.h
 	src/libraries/luasocket/libluasocket/inet.c
 	src/libraries/luasocket/libluasocket/inet.h
 	src/libraries/luasocket/libluasocket/io.c
 	src/libraries/luasocket/libluasocket/io.h
 	src/libraries/luasocket/libluasocket/ltn12.lua.h
-	src/libraries/luasocket/libluasocket/lua.h
 	src/libraries/luasocket/libluasocket/luasocket.c
 	src/libraries/luasocket/libluasocket/luasocket.h
+	src/libraries/luasocket/libluasocket/mbox.lua.h
 	src/libraries/luasocket/libluasocket/mime.c
 	src/libraries/luasocket/libluasocket/mime.h
 	src/libraries/luasocket/libluasocket/mime.lua.h
 	src/libraries/luasocket/libluasocket/options.c
 	src/libraries/luasocket/libluasocket/options.h
+	src/libraries/luasocket/libluasocket/pierror.h
 	src/libraries/luasocket/libluasocket/select.c
 	src/libraries/luasocket/libluasocket/select.h
 	src/libraries/luasocket/libluasocket/smtp.lua.h
@@ -1286,15 +1286,29 @@ set(LOVE_SRC_3P_LUASOCKET_LIBLUASOCKET
 	src/libraries/luasocket/libluasocket/url.lua.h
 )
 
+set(LOVE_LINK_L3P_LUASOCKET_LIBLUASOCKET)
+
 if(MSVC)
 	set(LOVE_SRC_3P_LUASOCKET_LIBLUASOCKET
 		${LOVE_SRC_3P_LUASOCKET_LIBLUASOCKET}
 		src/libraries/luasocket/libluasocket/wsocket.c
 		src/libraries/luasocket/libluasocket/wsocket.h
 	)
+
+	set(LOVE_LINK_L3P_LUASOCKET_LIBLUASOCKET
+		${LOVE_LINK_L3P_LUASOCKET_LIBLUASOCKET}
+		ws2_32.lib
+	)
 else()
 	set(LOVE_SRC_3P_LUASOCKET_LIBLUASOCKET
 		${LOVE_SRC_3P_LUASOCKET_LIBLUASOCKET}
+		src/libraries/luasocket/libluasocket/serial.c
+		src/libraries/luasocket/libluasocket/unix.c
+		src/libraries/luasocket/libluasocket/unix.h
+		src/libraries/luasocket/libluasocket/unixtcp.c
+		src/libraries/luasocket/libluasocket/unixtcp.h
+		src/libraries/luasocket/libluasocket/unixudp.c
+		src/libraries/luasocket/libluasocket/unixudp.h
 		src/libraries/luasocket/libluasocket/usocket.c
 		src/libraries/luasocket/libluasocket/usocket.h
 	)
@@ -1306,7 +1320,7 @@ set(LOVE_SRC_3P_LUASOCKET
 )
 
 add_library(love_3p_luasocket ${LOVE_SRC_3P_LUASOCKET})
-target_link_libraries(love_3p_luasocket ${LOVE_LUA_LIBRARY})
+target_link_libraries(love_3p_luasocket ${LOVE_LUA_LIBRARY} ${LOVE_LINK_L3P_LUASOCKET_LIBLUASOCKET})
 
 #
 # Lua 5.3's UTF-8 library

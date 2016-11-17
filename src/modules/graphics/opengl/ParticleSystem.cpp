@@ -84,7 +84,7 @@ void ParticleSystem::setBufferSize(uint32 size)
 	createVertices(size);
 }
 
-void ParticleSystem::draw(float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky)
+void ParticleSystem::draw(const Matrix4 &m)
 {
 	uint32 pCount = getCount();
 
@@ -94,7 +94,7 @@ void ParticleSystem::draw(float x, float y, float angle, float sx, float sy, flo
 	OpenGL::TempDebugGroup debuggroup("ParticleSystem draw");
 
 	OpenGL::TempTransform transform(gl);
-	transform.get() *= Matrix4(x, y, angle, sx, sy, ox, oy, kx, ky);
+	transform.get() *= m;
 
 	const Vertex *textureVerts = texture->getVertices();
 	Vertex *pVerts = particleVerts;
@@ -132,11 +132,12 @@ void ParticleSystem::draw(float x, float y, float angle, float sx, float sy, flo
 		p = p->next;
 	}
 
-	gl.bindTexture(*(GLuint *) texture->getHandle());
+	gl.bindTextureToUnit(*(GLuint *) texture->getHandle(), 0, false);
 	gl.prepareDraw();
 
 	gl.useVertexAttribArrays(ATTRIBFLAG_POS | ATTRIBFLAG_TEXCOORD | ATTRIBFLAG_COLOR);
 
+	gl.bindBuffer(BUFFER_VERTEX, 0);
 	glVertexAttribPointer(ATTRIB_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex), &particleVerts[0].r);
 	glVertexAttribPointer(ATTRIB_POS, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), &particleVerts[0].x);
 	glVertexAttribPointer(ATTRIB_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), &particleVerts[0].s);
@@ -148,6 +149,7 @@ void ParticleSystem::draw(float x, float y, float angle, float sx, float sy, flo
 	// at least one graphics driver (the one for Kepler nvidia GPUs in OS X
 	// 10.11) fails to render geometry if an index buffer is used with
 	// client-side vertex arrays.
+	gl.bindBuffer(BUFFER_INDEX, 0);
 	gl.drawElements(GL_TRIANGLES, count, gltype, quadIndices.getIndices(0));
 }
 

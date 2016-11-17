@@ -58,13 +58,12 @@ void Text::uploadVertices(const std::vector<Font::GlyphVertex> &vertices, size_t
 		if (vbo != nullptr)
 			newsize = std::max(size_t(vbo->getSize() * 1.5), newsize);
 
-		GLBuffer *new_vbo = new GLBuffer(newsize, nullptr, GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW);
+		GLBuffer *new_vbo = new GLBuffer(newsize, nullptr, BUFFER_VERTEX, GL_DYNAMIC_DRAW);
 
 		if (vbo != nullptr)
 		{
 			try
 			{
-				GLBuffer::Bind bind(*vbo);
 				vbodata = (uint8 *) vbo->map();
 			}
 			catch (love::Exception &)
@@ -73,7 +72,6 @@ void Text::uploadVertices(const std::vector<Font::GlyphVertex> &vertices, size_t
 				throw;
 			}
 
-			GLBuffer::Bind bind(*new_vbo);
 			new_vbo->fill(0, vbo->getSize(), vbodata);
 		}
 
@@ -83,7 +81,6 @@ void Text::uploadVertices(const std::vector<Font::GlyphVertex> &vertices, size_t
 
 	if (vbo != nullptr && datasize > 0)
 	{
-		GLBuffer::Bind bind(*vbo);
 		vbodata = (uint8 *) vbo->map();
 		memcpy(vbodata + offset, &vertices[0], datasize);
 		// We unmap when we draw, to avoid unnecessary full map()/unmap() calls.
@@ -182,20 +179,18 @@ void Text::set(const std::vector<Font::ColoredString> &text, float wrap, Font::A
 	Font::ColoredCodepoints codepoints;
 	Font::getCodepointsFromString(text, codepoints);
 
-	addTextData({codepoints, wrap, align, {}, false, false, Matrix3()});
+	addTextData({codepoints, wrap, align, {}, false, false, Matrix4()});
 }
 
-int Text::add(const std::vector<Font::ColoredString> &text, float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky)
+int Text::add(const std::vector<Font::ColoredString> &text, const Matrix4 &m)
 {
-	return addf(text, -1.0f, Font::ALIGN_MAX_ENUM, x, y, angle, sx, sy, ox, oy, kx, ky);
+	return addf(text, -1.0f, Font::ALIGN_MAX_ENUM, m);
 }
 
-int Text::addf(const std::vector<Font::ColoredString> &text, float wrap, Font::AlignMode align, float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky)
+int Text::addf(const std::vector<Font::ColoredString> &text, float wrap, Font::AlignMode align, const Matrix4 &m)
 {
 	Font::ColoredCodepoints codepoints;
 	Font::getCodepointsFromString(text, codepoints);
-
-	Matrix3 m(x, y, angle, sx, sy, ox, oy, kx, ky);
 
 	addTextData({codepoints, wrap, align, {}, true, true, m});
 
@@ -210,7 +205,7 @@ void Text::clear()
 	vert_offset = 0;
 }
 
-void Text::draw(float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky)
+void Text::draw(const Matrix4 &m)
 {
 	if (vbo == nullptr || draw_commands.empty())
 		return;
@@ -227,10 +222,10 @@ void Text::draw(float x, float y, float angle, float sx, float sy, float ox, flo
 	const size_t stride = sizeof(Font::GlyphVertex);
 
 	OpenGL::TempTransform transform(gl);
-	transform.get() *= Matrix4(x, y, angle, sx, sy, ox, oy, kx, ky);
+	transform.get() *= m;
 
 	{
-		GLBuffer::Bind bind(*vbo);
+		vbo->bind();
 		vbo->unmap(); // Make sure all pending data is flushed to the GPU.
 
 		// Font::drawVertices expects AttribPointer calls to be done already.

@@ -1258,24 +1258,24 @@ bool Graphics::isWireframe() const
 	return states.back().wireframe;
 }
 
-void Graphics::print(const std::vector<Font::ColoredString> &str, float x, float y , float angle, float sx, float sy, float ox, float oy, float kx, float ky)
+void Graphics::print(const std::vector<Font::ColoredString> &str, const Matrix4 &m)
 {
 	checkSetDefaultFont();
 
 	DisplayState &state = states.back();
 
 	if (state.font.get() != nullptr)
-		state.font->print(str, x, y, angle, sx, sy, ox, oy, kx, ky);
+		state.font->print(str, m);
 }
 
-void Graphics::printf(const std::vector<Font::ColoredString> &str, float x, float y, float wrap, Font::AlignMode align, float angle, float sx, float sy, float ox, float oy, float kx, float ky)
+void Graphics::printf(const std::vector<Font::ColoredString> &str, float wrap, Font::AlignMode align, const Matrix4 &m)
 {
 	checkSetDefaultFont();
 
 	DisplayState &state = states.back();
 
 	if (state.font.get() != nullptr)
-		state.font->printf(str, x, y, wrap, align, angle, sx, sy, ox, oy, kx, ky);
+		state.font->printf(str, wrap, align, m);
 }
 
 /**
@@ -1287,7 +1287,8 @@ void Graphics::points(const float *coords, const uint8 *colors, size_t numpoints
 	OpenGL::TempDebugGroup debuggroup("Graphics points draw");
 
 	gl.prepareDraw();
-	gl.bindTexture(gl.getDefaultTexture());
+	gl.bindTextureToUnit(gl.getDefaultTexture(), 0, false);
+	gl.bindBuffer(BUFFER_VERTEX, 0);
 
 	uint32 attribflags = ATTRIBFLAG_POS;
 	glVertexAttribPointer(ATTRIB_POS, 2, GL_FLOAT, GL_FALSE, 0, coords);
@@ -1299,7 +1300,7 @@ void Graphics::points(const float *coords, const uint8 *colors, size_t numpoints
 	}
 
 	gl.useVertexAttribArrays(attribflags);
-	gl.drawArrays(GL_POINTS, 0, numpoints);
+	gl.drawArrays(GL_POINTS, 0, (GLsizei) numpoints);
 }
 
 void Graphics::polyline(const float *coords, size_t count)
@@ -1549,7 +1550,8 @@ void Graphics::polygon(DrawMode mode, const float *coords, size_t count)
 		OpenGL::TempDebugGroup debuggroup("Filled polygon draw");
 
 		gl.prepareDraw();
-		gl.bindTexture(gl.getDefaultTexture());
+		gl.bindTextureToUnit(gl.getDefaultTexture(), 0, false);
+		gl.bindBuffer(BUFFER_VERTEX, 0);
 		gl.useVertexAttribArrays(ATTRIBFLAG_POS);
 		glVertexAttribPointer(ATTRIB_POS, 2, GL_FLOAT, GL_FALSE, 0, coords);
 		gl.drawArrays(GL_TRIANGLE_FAN, 0, (int)count/2-1); // opengl will close the polygon for us
@@ -1787,6 +1789,22 @@ void Graphics::origin()
 {
 	gl.getTransform().setIdentity();
 	pixelSizeStack.back() = 1;
+}
+
+Vector Graphics::transformPoint(Vector point)
+{
+	Vector p;
+	gl.getTransform().transform(&p, &point, 1);
+	return p;
+}
+
+Vector Graphics::inverseTransformPoint(Vector point)
+{
+	Vector p;
+	// TODO: We should probably cache the inverse transform so we don't have to
+	// re-calculate it every time this is called.
+	gl.getTransform().inverse().transform(&p, &point, 1);
+	return p;
 }
 
 } // opengl

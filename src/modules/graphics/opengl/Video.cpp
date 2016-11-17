@@ -88,7 +88,7 @@ bool Video::loadVolatile()
 
 	for (int i = 0; i < 3; i++)
 	{
-		gl.bindTexture(textures[i]);
+		gl.bindTextureToUnit(textures[i], 0, false);
 
 		gl.setTextureFilter(filter);
 		gl.setTextureWrap(wrap);
@@ -114,7 +114,7 @@ love::video::VideoStream *Video::getStream()
 	return stream;
 }
 
-void Video::draw(float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky)
+void Video::draw(const Matrix4 &m)
 {
 	update();
 
@@ -130,10 +130,11 @@ void Video::draw(float x, float y, float angle, float sx, float sy, float ox, fl
 	shader->setVideoTextures(textures[0], textures[1], textures[2]);
 
 	OpenGL::TempTransform transform(gl);
-	transform.get() *= Matrix4(x, y, angle, sx, sy, ox, oy, kx, ky);
+	transform.get() *= m;
 
 	gl.useVertexAttribArrays(ATTRIBFLAG_POS | ATTRIBFLAG_TEXCOORD);
 
+	gl.bindBuffer(BUFFER_VERTEX, 0);
 	glVertexAttribPointer(ATTRIB_POS, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), &vertices[0].x);
 	glVertexAttribPointer(ATTRIB_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), &vertices[0].s);
 
@@ -161,7 +162,7 @@ void Video::update()
 
 		for (int i = 0; i < 3; i++)
 		{
-			gl.bindTexture(textures[i]);
+			gl.bindTextureToUnit(textures[i], 0, false);
 			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, widths[i], heights[i],
 			                GL_LUMINANCE, GL_UNSIGNED_BYTE, data[i]);
 		}
@@ -197,7 +198,7 @@ void Video::setFilter(const Texture::Filter &f)
 
 	for (int i = 0; i < 3; i++)
 	{
-		gl.bindTexture(textures[i]);
+		gl.bindTextureToUnit(textures[i], 0, false);
 		gl.setTextureFilter(filter);
 	}
 }

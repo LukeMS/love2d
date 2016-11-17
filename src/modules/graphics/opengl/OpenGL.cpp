@@ -143,6 +143,12 @@ void OpenGL::setupContext()
 	else
 		state.framebufferSRGBEnabled = false;
 
+	for (int i = 0; i < (int) BUFFER_MAX_ENUM; i++)
+	{
+		state.boundBuffers[i] = 0;
+		glBindBuffer(getGLBufferType((BufferType) i), 0);
+	}
+
 	// Initialize multiple texture unit support for shaders.
 	state.boundTextures.clear();
 	state.boundTextures.resize(maxTextureUnits, 0);
@@ -314,7 +320,7 @@ void OpenGL::createDefaultTexture()
 	GLuint curtexture = state.boundTextures[state.curTextureUnit];
 
 	glGenTextures(1, &state.defaultTexture);
-	bindTexture(state.defaultTexture);
+	bindTextureToUnit(state.defaultTexture, 0, false);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -325,7 +331,7 @@ void OpenGL::createDefaultTexture()
 	GLubyte pix[] = {255, 255, 255, 255};
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
 
-	bindTexture(curtexture);
+	bindTextureToUnit(curtexture, 0, false);
 }
 
 void OpenGL::pushTransform()
@@ -377,6 +383,39 @@ void OpenGL::prepareDraw()
 			glLoadMatrixf(curxform.getElements());
 			state.lastTransformMatrix = matrices.transform.back();
 		}
+	}
+}
+
+GLenum OpenGL::getGLBufferType(BufferType type)
+{
+	switch (type)
+	{
+	case BUFFER_VERTEX:
+		return GL_ARRAY_BUFFER;
+	case BUFFER_INDEX:
+		return GL_ELEMENT_ARRAY_BUFFER;
+	case BUFFER_MAX_ENUM:
+		return GL_ZERO;
+	}
+}
+
+void OpenGL::bindBuffer(BufferType type, GLuint buffer)
+{
+	if (state.boundBuffers[type] != buffer)
+	{
+		glBindBuffer(getGLBufferType(type), buffer);
+		state.boundBuffers[type] = buffer;
+	}
+}
+
+void OpenGL::deleteBuffer(GLuint buffer)
+{
+	glDeleteBuffers(1, &buffer);
+
+	for (int i = 0; i < (int) BUFFER_MAX_ENUM; i++)
+	{
+		if (state.boundBuffers[i] == buffer)
+			state.boundBuffers[i] = 0;
 	}
 }
 
@@ -521,39 +560,27 @@ GLuint OpenGL::getDefaultTexture() const
 
 void OpenGL::setTextureUnit(int textureunit)
 {
-	if (textureunit < 0 || (size_t) textureunit >= state.boundTextures.size())
-		throw love::Exception("Invalid texture unit index (%d).", textureunit);
-
 	if (textureunit != state.curTextureUnit)
 		glActiveTexture(GL_TEXTURE0 + textureunit);
 
 	state.curTextureUnit = textureunit;
 }
 
-void OpenGL::bindTexture(GLuint texture)
-{
-	if (texture != state.boundTextures[state.curTextureUnit])
-	{
-		state.boundTextures[state.curTextureUnit] = texture;
-		glBindTexture(GL_TEXTURE_2D, texture);
-	}
-}
-
 void OpenGL::bindTextureToUnit(GLuint texture, int textureunit, bool restoreprev)
 {
-	if (textureunit < 0 || (size_t) textureunit >= state.boundTextures.size())
-		throw love::Exception("Invalid texture unit index.");
-
 	if (texture != state.boundTextures[textureunit])
 	{
 		int oldtextureunit = state.curTextureUnit;
-		setTextureUnit(textureunit);
+		if (oldtextureunit != textureunit)
+			glActiveTexture(GL_TEXTURE0 + textureunit);
 
 		state.boundTextures[textureunit] = texture;
 		glBindTexture(GL_TEXTURE_2D, texture);
 
-		if (restoreprev)
-			setTextureUnit(oldtextureunit);
+		if (restoreprev && oldtextureunit != textureunit)
+			glActiveTexture(GL_TEXTURE0 + oldtextureunit);
+		else
+			state.curTextureUnit = textureunit;
 	}
 }
 

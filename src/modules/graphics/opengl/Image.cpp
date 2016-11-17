@@ -218,7 +218,7 @@ void Image::loadDefaultTexture()
 {
 	usingDefaultTexture = true;
 
-	gl.bindTexture(texture);
+	gl.bindTextureToUnit(texture, 0, false);
 	setFilter(filter);
 
 	// A nice friendly checkerboard to signify invalid textures...
@@ -320,7 +320,7 @@ bool Image::loadVolatile()
 		glGetFloatv(GL_MAX_TEXTURE_LOD_BIAS, &maxMipmapSharpness);
 
 	glGenTextures(1, &texture);
-	gl.bindTexture(texture);
+	gl.bindTextureToUnit(texture, 0, false);
 
 	setFilter(filter);
 	setWrap(wrap);
@@ -406,7 +406,7 @@ bool Image::refresh(int xoffset, int yoffset, int w, int h)
 
 	OpenGL::TempDebugGroup debuggroup("Image refresh");
 
-	gl.bindTexture(texture);
+	gl.bindTextureToUnit(texture, 0, false);
 
 	if (isCompressed())
 	{
@@ -449,10 +449,11 @@ void Image::drawv(const Matrix4 &t, const Vertex *v)
 	OpenGL::TempTransform transform(gl);
 	transform.get() *= t;
 
-	gl.bindTexture(texture);
+	gl.bindTextureToUnit(texture, 0, false);
 
 	gl.useVertexAttribArrays(ATTRIBFLAG_POS | ATTRIBFLAG_TEXCOORD);
 
+	gl.bindBuffer(BUFFER_VERTEX, 0);
 	glVertexAttribPointer(ATTRIB_POS, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), &v[0].x);
 	glVertexAttribPointer(ATTRIB_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), &v[0].s);
 
@@ -460,18 +461,14 @@ void Image::drawv(const Matrix4 &t, const Vertex *v)
 	gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void Image::draw(float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky)
+void Image::draw(const Matrix4 &m)
 {
-	Matrix4 t(x, y, angle, sx, sy, ox, oy, kx, ky);
-
-	drawv(t, vertices);
+	drawv(m, vertices);
 }
 
-void Image::drawq(Quad *quad, float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky)
+void Image::drawq(Quad *quad, const Matrix4 &m)
 {
-	Matrix4 t(x, y, angle, sx, sy, ox, oy, kx, ky);
-
-	drawv(t, quad->getVertices());
+	drawv(m, quad->getVertices());
 }
 
 const void *Image::getHandle() const
@@ -516,7 +513,7 @@ void Image::setFilter(const Texture::Filter &f)
 		filter.min = filter.mag = FILTER_NEAREST;
 	}
 
-	gl.bindTexture(texture);
+	gl.bindTextureToUnit(texture, 0, false);
 	gl.setTextureFilter(filter);
 }
 
@@ -543,7 +540,7 @@ bool Image::setWrap(const Texture::Wrap &w)
 			wrap.t = WRAP_CLAMP;
 	}
 
-	gl.bindTexture(texture);
+	gl.bindTextureToUnit(texture, 0, false);
 	gl.setTextureWrap(wrap);
 
 	return success;
@@ -558,7 +555,7 @@ void Image::setMipmapSharpness(float sharpness)
 	// LOD bias has the range (-maxbias, maxbias)
 	mipmapSharpness = std::min(std::max(sharpness, -maxMipmapSharpness + 0.01f), maxMipmapSharpness - 0.01f);
 
-	gl.bindTexture(texture);
+	gl.bindTextureToUnit(texture, 0, false);
 
 	// negative bias is sharper
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -mipmapSharpness);

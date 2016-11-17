@@ -169,7 +169,7 @@ void Font::createTexture()
 	else
 		glGenTextures(1, &t);
 
-	gl.bindTexture(t);
+	gl.bindTextureToUnit(t, 0, false);
 
 	gl.setTextureFilter(filter);
 
@@ -288,7 +288,7 @@ const Font::Glyph &Font::addGlyph(uint32 glyph)
 		GLenum format = getTextureFormat(type);
 		g.texture = textures.back();
 
-		gl.bindTexture(g.texture);
+		gl.bindTextureToUnit(g.texture, 0, false);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, textureX, textureY, w, h,
 		                format, GL_UNSIGNED_BYTE, gd->getData());
 
@@ -663,6 +663,8 @@ void Font::drawVertices(const std::vector<DrawCommand> &drawcommands, bool buffe
 	// with client-side vertex arrays.
 	if (bufferedvertices)
 		quadIndices.getBuffer()->bind();
+	else
+		gl.bindBuffer(BUFFER_INDEX, 0);
 
 	// We need a separate draw call for every section of the text which uses a
 	// different texture than the previous section.
@@ -672,16 +674,13 @@ void Font::drawVertices(const std::vector<DrawCommand> &drawcommands, bool buffe
 		size_t offset = (cmd.startvertex / 4) * 6 * elemsize;
 
 		// TODO: Use glDrawElementsBaseVertex when supported?
-		gl.bindTexture(cmd.texture);
+		gl.bindTextureToUnit(cmd.texture, 0, false);
 
 		if (bufferedvertices)
 			gl.drawElements(GL_TRIANGLES, count, gltype, quadIndices.getPointer(offset));
 		else
 			gl.drawElements(GL_TRIANGLES, count, gltype, quadIndices.getIndices(offset));
 	}
-
-	if (bufferedvertices)
-		quadIndices.getBuffer()->unbind();
 }
 
 void Font::printv(const Matrix4 &t, const std::vector<DrawCommand> &drawcommands, const std::vector<GlyphVertex> &vertices)
@@ -694,6 +693,7 @@ void Font::printv(const Matrix4 &t, const std::vector<DrawCommand> &drawcommands
 	OpenGL::TempTransform transform(gl);
 	transform.get() *= t;
 
+	gl.bindBuffer(BUFFER_VERTEX, 0);
 	glVertexAttribPointer(ATTRIB_POS, 2, GL_FLOAT, GL_FALSE, sizeof(GlyphVertex), &vertices[0].x);
 	glVertexAttribPointer(ATTRIB_TEXCOORD, 2, GL_UNSIGNED_SHORT, GL_TRUE, sizeof(GlyphVertex), &vertices[0].s);
 	glVertexAttribPointer(ATTRIB_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(GlyphVertex), &vertices[0].color.r);
@@ -703,7 +703,7 @@ void Font::printv(const Matrix4 &t, const std::vector<DrawCommand> &drawcommands
 	drawVertices(drawcommands, false);
 }
 
-void Font::print(const std::vector<ColoredString> &text, float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky)
+void Font::print(const std::vector<ColoredString> &text, const Matrix4 &m)
 {
 	ColoredCodepoints codepoints;
 	getCodepointsFromString(text, codepoints);
@@ -711,12 +711,10 @@ void Font::print(const std::vector<ColoredString> &text, float x, float y, float
 	std::vector<GlyphVertex> vertices;
 	std::vector<DrawCommand> drawcommands = generateVertices(codepoints, vertices);
 
-	Matrix4 t(x, y, angle, sx, sy, ox, oy, kx, ky);
-
-	printv(t, drawcommands, vertices);
+	printv(m, drawcommands, vertices);
 }
 
-void Font::printf(const std::vector<ColoredString> &text, float x, float y, float wrap, AlignMode align, float angle, float sx, float sy, float ox, float oy, float kx, float ky)
+void Font::printf(const std::vector<ColoredString> &text, float wrap, AlignMode align, const Matrix4 &m)
 {
 	ColoredCodepoints codepoints;
 	getCodepointsFromString(text, codepoints);
@@ -724,9 +722,7 @@ void Font::printf(const std::vector<ColoredString> &text, float x, float y, floa
 	std::vector<GlyphVertex> vertices;
 	std::vector<DrawCommand> drawcommands = generateVerticesFormatted(codepoints, wrap, align, vertices);
 
-	Matrix4 t(x, y, angle, sx, sy, ox, oy, kx, ky);
-
-	printv(t, drawcommands, vertices);
+	printv(m, drawcommands, vertices);
 }
 
 int Font::getWidth(const std::string &str)
@@ -980,7 +976,7 @@ void Font::setFilter(const Texture::Filter &f)
 
 	for (GLuint texture : textures)
 	{
-		gl.bindTexture(texture);
+		gl.bindTextureToUnit(texture, 0, false);
 		gl.setTextureFilter(filter);
 	}
 }

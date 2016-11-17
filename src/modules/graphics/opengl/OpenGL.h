@@ -69,6 +69,13 @@ enum VertexAttribFlags
 	ATTRIBFLAG_CONSTANTCOLOR = 1 << ATTRIB_CONSTANTCOLOR
 };
 
+enum BufferType
+{
+	BUFFER_VERTEX = 0,
+	BUFFER_INDEX,
+	BUFFER_MAX_ENUM
+};
+
 /**
  * Thin layer between OpenGL and the rest of the program.
  * Internally shadows some OpenGL context state for improved efficiency and
@@ -244,6 +251,18 @@ public:
 	void prepareDraw();
 
 	/**
+	 * State-tracked glBindBuffer.
+	 * NOTE: This does not account for multiple VAOs being used! Index buffer
+	 * bindings are per-VAO in OpenGL, but this doesn't know about that.
+	 **/
+	void bindBuffer(BufferType type, GLuint buffer);
+
+	/**
+	 * glDeleteBuffers which updates our shadowed state.
+	 **/
+	void deleteBuffer(GLuint buffer);
+
+	/**
 	 * glDrawArrays and glDrawElements which increment the draw-call counter by
 	 * themselves.
 	 **/
@@ -330,12 +349,6 @@ public:
 	void setTextureUnit(int textureunit);
 
 	/**
-	 * Helper for binding an OpenGL texture.
-	 * Makes sure we aren't redundantly binding textures.
-	 **/
-	void bindTexture(GLuint texture);
-
-	/**
 	 * Helper for binding a texture to a specific texture unit.
 	 *
 	 * @param textureunit Index in the range of [0, maxtextureunits-1]
@@ -396,6 +409,9 @@ public:
 	 **/
 	Vendor getVendor() const;
 
+	static GLenum getGLBufferType(BufferType type);
+	static GLint getGLWrapMode(Texture::WrapMode wmode);
+
 	static const char *errorString(GLenum errorcode);
 
 	// Get human-readable strings for debug info.
@@ -411,8 +427,6 @@ private:
 	void initMatrices();
 	void createDefaultTexture();
 
-	GLint getGLWrapMode(Texture::WrapMode wmode);
-
 	bool contextInitialized;
 
 	float maxAnisotropy;
@@ -427,6 +441,8 @@ private:
 	// Tracked OpenGL state.
 	struct
 	{
+		GLuint boundBuffers[BUFFER_MAX_ENUM];
+
 		// Texture unit state (currently bound texture for each texture unit.)
 		std::vector<GLuint> boundTextures;
 

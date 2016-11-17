@@ -1551,11 +1551,13 @@ int w_draw(lua_State *L)
 	float kx = (float) luaL_optnumber(L, startidx + 7, 0.0);
 	float ky = (float) luaL_optnumber(L, startidx + 8, 0.0);
 
+	Matrix4 m(x, y, a, sx, sy, ox, oy, kx, ky);
+
 	luax_catchexcept(L, [&]() {
 		if (texture && quad)
-			texture->drawq(quad, x, y, a, sx, sy, ox, oy, kx, ky);
+			texture->drawq(quad, m);
 		else if (drawable)
-			drawable->draw(x, y, a, sx, sy, ox, oy, kx, ky);
+			drawable->draw(m);
 	});
 
 	return 0;
@@ -1576,9 +1578,9 @@ int w_print(lua_State *L)
 	float kx = (float)luaL_optnumber(L, 9, 0.0f);
 	float ky = (float)luaL_optnumber(L, 10, 0.0f);
 
-	luax_catchexcept(L,
-		[&](){ instance()->print(str, x, y, angle, sx, sy, ox, oy, kx,ky); }
-	);
+	Matrix4 m(x, y, angle, sx, sy, ox, oy, kx, ky);
+
+	luax_catchexcept(L, [&](){ instance()->print(str, m); });
 	return 0;
 }
 
@@ -1616,9 +1618,9 @@ int w_printf(lua_State *L)
 		ky = (float) luaL_optnumber(L, 12, 0.0f);
 	}
 
-	luax_catchexcept(L,
-		[&](){ instance()->printf(str, x, y, wrap, align, angle, sx, sy, ox, oy, kx, ky); }
-	);
+	Matrix4 m(x, y, angle, sx, sy, ox, oy, kx, ky);
+
+	luax_catchexcept(L, [&](){ instance()->printf(str, wrap, align, m); });
 	return 0;
 }
 
@@ -1958,6 +1960,28 @@ int w_origin(lua_State * /*L*/)
 	return 0;
 }
 
+int w_transformPoint(lua_State *L)
+{
+	Vector p;
+	p.x = (float) luaL_checknumber(L, 1);
+	p.y = (float) luaL_checknumber(L, 2);
+	p = instance()->transformPoint(p);
+	lua_pushnumber(L, p.x);
+	lua_pushnumber(L, p.y);
+	return 2;
+}
+
+int w_inverseTransformPoint(lua_State *L)
+{
+	Vector p;
+	p.x = (float) luaL_checknumber(L, 1);
+	p.y = (float) luaL_checknumber(L, 2);
+	p = instance()->inverseTransformPoint(p);
+	lua_pushnumber(L, p.x);
+	lua_pushnumber(L, p.y);
+	return 2;
+}
+
 
 // List of functions to wrap.
 static const luaL_Reg functions[] =
@@ -2058,6 +2082,8 @@ static const luaL_Reg functions[] =
 	{ "translate", w_translate },
 	{ "shear", w_shear },
 	{ "origin", w_origin },
+	{ "transformPoint", w_transformPoint },
+	{ "inverseTransformPoint", w_inverseTransformPoint },
 
 	{ 0, 0 }
 };
