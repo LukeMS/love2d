@@ -23,7 +23,6 @@
 #include "OpenGL.h"
 
 #include "Shader.h"
-#include "Canvas.h"
 #include "common/Exception.h"
 
 // C++
@@ -75,7 +74,6 @@ OpenGL::OpenGL()
 	, state()
 {
 	matrices.transform.reserve(10);
-	matrices.projection.reserve(2);
 }
 
 bool OpenGL::initContext()
@@ -135,6 +133,10 @@ void OpenGL::setupContext()
 	else
 		state.pointSize = 1.0f;
 
+	for (int i = 0; i < 2; i++)
+		state.boundFramebuffers[i] = std::numeric_limits<GLuint>::max();
+	bindFramebuffer(FRAMEBUFFER_ALL, getDefaultFBO());
+
 	if (GLAD_VERSION_3_0 || GLAD_ARB_framebuffer_sRGB || GLAD_EXT_framebuffer_sRGB
 		|| GLAD_EXT_sRGB_write_control)
 	{
@@ -142,6 +144,12 @@ void OpenGL::setupContext()
 	}
 	else
 		state.framebufferSRGBEnabled = false;
+
+	for (int i = 0; i < (int) BUFFER_MAX_ENUM; i++)
+	{
+		state.boundBuffers[i] = 0;
+		glBindBuffer(getGLBufferType((BufferType) i), 0);
+	}
 
 	// Initialize multiple texture unit support for shaders.
 	state.boundTextures.clear();
@@ -277,7 +285,7 @@ void OpenGL::initMaxValues()
 		glGetIntegerv(GL_MAX_DRAW_BUFFERS, &maxdrawbuffers);
 	}
 
-	maxRenderTargets = std::min(maxattachments, maxdrawbuffers);
+	maxRenderTargets = std::max(std::min(maxattachments, maxdrawbuffers), 1);
 
 	if (GLAD_ES_VERSION_3_0 || GLAD_VERSION_3_0 || GLAD_ARB_framebuffer_object
 		|| GLAD_EXT_framebuffer_multisample || GLAD_APPLE_framebuffer_multisample
@@ -298,10 +306,9 @@ void OpenGL::initMaxValues()
 void OpenGL::initMatrices()
 {
 	matrices.transform.clear();
-	matrices.projection.clear();
 
 	matrices.transform.push_back(Matrix4());
-	matrices.projection.push_back(Matrix4());
+	matrices.projection = Matrix4();
 }
 
 void OpenGL::createDefaultTexture()
@@ -314,7 +321,7 @@ void OpenGL::createDefaultTexture()
 	GLuint curtexture = state.boundTextures[state.curTextureUnit];
 
 	glGenTextures(1, &state.defaultTexture);
-	bindTexture(state.defaultTexture);
+	bindTextureToUnit(state.defaultTexture, 0, false);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -325,7 +332,7 @@ void OpenGL::createDefaultTexture()
 	GLubyte pix[] = {255, 255, 255, 255};
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
 
-	bindTexture(curtexture);
+	bindTextureToUnit(curtexture, 0, false);
 }
 
 void OpenGL::pushTransform()
@@ -355,7 +362,7 @@ void OpenGL::prepareDraw()
 	// because uniform uploads can be significantly slower than glLoadMatrix.
 	if (GLAD_VERSION_1_0)
 	{
-		const Matrix4 &curproj = matrices.projection.back();
+		const Matrix4 &curproj = matrices.projection;
 		const Matrix4 &curxform = matrices.transform.back();
 
 		const Matrix4 &lastproj = state.lastProjectionMatrix;
@@ -368,7 +375,7 @@ void OpenGL::prepareDraw()
 			glLoadMatrixf(curproj.getElements());
 			glMatrixMode(GL_MODELVIEW);
 
-			state.lastProjectionMatrix = matrices.projection.back();
+			state.lastProjectionMatrix = matrices.projection;
 		}
 
 		// Same with the transform matrix.
@@ -377,6 +384,39 @@ void OpenGL::prepareDraw()
 			glLoadMatrixf(curxform.getElements());
 			state.lastTransformMatrix = matrices.transform.back();
 		}
+	}
+}
+
+GLenum OpenGL::getGLBufferType(BufferType type)
+{
+	switch (type)
+	{
+	case BUFFER_VERTEX:
+		return GL_ARRAY_BUFFER;
+	case BUFFER_INDEX:
+		return GL_ELEMENT_ARRAY_BUFFER;
+	case BUFFER_MAX_ENUM:
+		return GL_ZERO;
+	}
+}
+
+void OpenGL::bindBuffer(BufferType type, GLuint buffer)
+{
+	if (state.boundBuffers[type] != buffer)
+	{
+		glBindBuffer(getGLBufferType(type), buffer);
+		state.boundBuffers[type] = buffer;
+	}
+}
+
+void OpenGL::deleteBuffer(GLuint buffer)
+{
+	glDeleteBuffers(1, &buffer);
+
+	for (int i = 0; i < (int) BUFFER_MAX_ENUM; i++)
+	{
+		if (state.boundBuffers[i] == buffer)
+			state.boundBuffers[i] = 0;
 	}
 }
 
@@ -424,7 +464,7 @@ void OpenGL::useVertexAttribArrays(uint32 arraybits)
 		glVertexAttrib4f(ATTRIB_COLOR, 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-void OpenGL::setViewport(const OpenGL::Viewport &v)
+void OpenGL::setViewport(const OpenGL::Viewport &v, bool canvasActive)
 {
 	glViewport(v.x, v.y, v.w, v.h);
 	state.viewport = v;
@@ -432,7 +472,7 @@ void OpenGL::setViewport(const OpenGL::Viewport &v)
 	// glScissor starts from the lower left, so we compensate when setting the
 	// scissor. When the viewport is changed, we need to manually update the
 	// scissor again.
-	setScissor(state.scissor);
+	setScissor(state.scissor, canvasActive);
 }
 
 OpenGL::Viewport OpenGL::getViewport() const
@@ -440,9 +480,9 @@ OpenGL::Viewport OpenGL::getViewport() const
 	return state.viewport;
 }
 
-void OpenGL::setScissor(const OpenGL::Viewport &v)
+void OpenGL::setScissor(const OpenGL::Viewport &v, bool canvasActive)
 {
-	if (Canvas::current)
+	if (canvasActive)
 		glScissor(v.x, v.y, v.w, v.h);
 	else
 	{
@@ -487,12 +527,53 @@ bool OpenGL::hasFramebufferSRGB() const
 	return state.framebufferSRGBEnabled;
 }
 
-void OpenGL::bindFramebuffer(GLenum target, GLuint framebuffer)
+void OpenGL::bindFramebuffer(FramebufferTarget target, GLuint framebuffer)
 {
-	glBindFramebuffer(target, framebuffer);
+	bool bindingmodified = false;
 
-	if (target == GL_FRAMEBUFFER)
-		++stats.framebufferBinds;
+	if ((target & FRAMEBUFFER_DRAW) && state.boundFramebuffers[0] != framebuffer)
+	{
+		bindingmodified = true;
+		state.boundFramebuffers[0] = framebuffer;
+	}
+
+	if ((target & FRAMEBUFFER_READ) && state.boundFramebuffers[1] != framebuffer)
+	{
+		bindingmodified = true;
+		state.boundFramebuffers[1] = framebuffer;
+	}
+
+	if (bindingmodified)
+	{
+		GLenum gltarget = GL_FRAMEBUFFER;
+		if (target == FRAMEBUFFER_DRAW)
+			gltarget = GL_DRAW_FRAMEBUFFER;
+		else if (target == FRAMEBUFFER_READ)
+			gltarget = GL_READ_FRAMEBUFFER;
+
+		glBindFramebuffer(gltarget, framebuffer);
+	}
+}
+
+GLenum OpenGL::getFramebuffer(FramebufferTarget target) const
+{
+	if (target & FRAMEBUFFER_DRAW)
+		return state.boundFramebuffers[0];
+	else if (target & FRAMEBUFFER_READ)
+		return state.boundFramebuffers[1];
+	else
+		return 0;
+}
+
+void OpenGL::deleteFramebuffer(GLuint framebuffer)
+{
+	glDeleteFramebuffers(1, &framebuffer);
+
+	for (int i = 0; i < 2; i++)
+	{
+		if (state.boundFramebuffers[i] == framebuffer)
+			state.boundFramebuffers[i] = 0;
+	}
 }
 
 void OpenGL::useProgram(GLuint program)
@@ -521,39 +602,27 @@ GLuint OpenGL::getDefaultTexture() const
 
 void OpenGL::setTextureUnit(int textureunit)
 {
-	if (textureunit < 0 || (size_t) textureunit >= state.boundTextures.size())
-		throw love::Exception("Invalid texture unit index (%d).", textureunit);
-
 	if (textureunit != state.curTextureUnit)
 		glActiveTexture(GL_TEXTURE0 + textureunit);
 
 	state.curTextureUnit = textureunit;
 }
 
-void OpenGL::bindTexture(GLuint texture)
-{
-	if (texture != state.boundTextures[state.curTextureUnit])
-	{
-		state.boundTextures[state.curTextureUnit] = texture;
-		glBindTexture(GL_TEXTURE_2D, texture);
-	}
-}
-
 void OpenGL::bindTextureToUnit(GLuint texture, int textureunit, bool restoreprev)
 {
-	if (textureunit < 0 || (size_t) textureunit >= state.boundTextures.size())
-		throw love::Exception("Invalid texture unit index.");
-
 	if (texture != state.boundTextures[textureunit])
 	{
 		int oldtextureunit = state.curTextureUnit;
-		setTextureUnit(textureunit);
+		if (oldtextureunit != textureunit)
+			glActiveTexture(GL_TEXTURE0 + textureunit);
 
 		state.boundTextures[textureunit] = texture;
 		glBindTexture(GL_TEXTURE_2D, texture);
 
-		if (restoreprev)
-			setTextureUnit(oldtextureunit);
+		if (restoreprev && oldtextureunit != textureunit)
+			glActiveTexture(GL_TEXTURE0 + oldtextureunit);
+		else
+			state.curTextureUnit = textureunit;
 	}
 }
 
@@ -653,7 +722,7 @@ int OpenGL::getMaxTextureSize() const
 
 int OpenGL::getMaxRenderTargets() const
 {
-	return maxRenderTargets;
+	return std::min(maxRenderTargets, MAX_COLOR_RENDER_TARGETS);
 }
 
 int OpenGL::getMaxRenderbufferSamples() const
@@ -708,6 +777,36 @@ const char *OpenGL::errorString(GLenum errorcode)
 
 	memset(text, 0, sizeof(text));
 	sprintf(text, "0x%x", errorcode);
+
+	return text;
+}
+
+const char *OpenGL::framebufferStatusString(GLenum status)
+{
+	switch (status)
+	{
+	case GL_FRAMEBUFFER_COMPLETE:
+		return "complete (success)";
+	case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+		return "Texture format cannot be rendered to on this system.";
+	case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+		return "Error in graphics driver (missing render texture attachment)";
+	case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+		return "Error in graphics driver (incomplete draw buffer)";
+	case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+		return "Error in graphics driver (incomplete read buffer)";
+	case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+		return "Canvas with the specified MSAA count cannot be rendered to on this system.";
+	case GL_FRAMEBUFFER_UNSUPPORTED:
+		return "Renderable textures are unsupported";
+	default:
+		break;
+	}
+
+	static char text[64] = {};
+
+	memset(text, 0, sizeof(text));
+	sprintf(text, "0x%x", status);
 
 	return text;
 }

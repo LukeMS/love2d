@@ -79,7 +79,14 @@ Window::~Window()
 {
 	close();
 
+	graphics.set(nullptr);
+
 	SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
+
+void Window::setGraphics(graphics::Graphics *graphics)
+{
+	this->graphics.set(graphics);
 }
 
 void Window::setGLFramebufferAttributes(int msaa, bool sRGB)
@@ -401,6 +408,12 @@ bool Window::createWindowAndContext(int x, int y, int w, int h, Uint32 windowfla
 
 bool Window::setWindow(int width, int height, WindowSettings *settings)
 {
+	if (!graphics.get())
+		graphics.set(Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS));
+
+	if (graphics.get() && graphics->isPassActive())
+		throw love::Exception("setMode cannot be called while a render pass is active in love.graphics.");
+
 	WindowSettings f;
 
 	if (settings)
@@ -505,14 +518,13 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 	if (f.vsync == -1 && SDL_GL_GetSwapInterval() != -1)
 		SDL_GL_SetSwapInterval(1);
 
-	updateSettings(f);
+	updateSettings(f, false);
 
-	auto gfx = Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS);
-	if (gfx != nullptr)
-		gfx->setMode(pixelWidth, pixelHeight);
+	if (graphics.get())
+		graphics->setMode(pixelWidth, pixelHeight);
 
 #ifdef LOVE_ANDROID
-		love::android::setImmersive(f.fullscreen);
+	love::android::setImmersive(f.fullscreen);
 #endif
 
 	return true;
@@ -528,14 +540,13 @@ bool Window::onSizeChanged(int width, int height)
 
 	SDL_GL_GetDrawableSize(window, &pixelWidth, &pixelHeight);
 
-	auto gfx = Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS);
-	if (gfx != nullptr)
-		gfx->setViewportSize(pixelWidth, pixelHeight);
+	if (graphics.get())
+		graphics->setViewportSize(pixelWidth, pixelHeight);
 
 	return true;
 }
 
-void Window::updateSettings(const WindowSettings &newsettings)
+void Window::updateSettings(const WindowSettings &newsettings, bool updateGraphicsViewport)
 {
 	Uint32 wflags = SDL_GetWindowFlags(window);
 
@@ -595,13 +606,17 @@ void Window::updateSettings(const WindowSettings &newsettings)
 
 	// May be 0 if the refresh rate can't be determined.
 	settings.refreshrate = (double) dmode.refresh_rate;
+
+	// Update the viewport size now instead of waiting for event polling.
+	if (updateGraphicsViewport && graphics.get())
+		graphics->setViewportSize(pixelWidth, pixelHeight);
 }
 
 void Window::getWindow(int &width, int &height, WindowSettings &newsettings)
 {
 	// The window might have been modified (moved, resized, etc.) by the user.
 	if (window)
-		updateSettings(settings);
+		updateSettings(settings, true);
 
 	width = windowWidth;
 	height = windowHeight;
@@ -610,9 +625,13 @@ void Window::getWindow(int &width, int &height, WindowSettings &newsettings)
 
 void Window::close()
 {
-	auto gfx = Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS);
-	if (gfx != nullptr)
-		gfx->unSetMode();
+	if (graphics.get())
+	{
+		if (graphics->isPassActive())
+			throw love::Exception("close cannot be called while a render pass is active in love.graphics.");
+
+		graphics->unSetMode();
+	}
 
 	if (context)
 	{
@@ -637,6 +656,9 @@ bool Window::setFullscreen(bool fullscreen, Window::FullscreenType fstype)
 {
 	if (!window)
 		return false;
+
+	if (graphics.get() && graphics->isPassActive())
+		throw love::Exception("setFullscreen cannot be called while a render pass is active in love.graphics.");
 
 	WindowSettings newsettings = settings;
 	newsettings.fullscreen = fullscreen;
@@ -668,16 +690,11 @@ bool Window::setFullscreen(bool fullscreen, Window::FullscreenType fstype)
 	if (SDL_SetWindowFullscreen(window, sdlflags) == 0)
 	{
 		SDL_GL_MakeCurrent(window, context);
-		updateSettings(newsettings);
+		updateSettings(newsettings, true);
 
 		// Apparently this gets un-set when we exit fullscreen (at least in OS X).
 		if (!fullscreen)
 			SDL_SetWindowMinimumSize(window, settings.minwidth, settings.minheight);
-
-		// Update the viewport size now instead of waiting for event polling.
-		auto gfx = Module::getInstance<graphics::Graphics>(Module::M_GRAPHICS);
-		if (gfx != nullptr)
-			gfx->setViewportSize(pixelWidth, pixelHeight);
 
 		return true;
 	}
@@ -877,7 +894,15 @@ void Window::minimize()
 void Window::maximize()
 {
 	if (window != nullptr)
+	{
 		SDL_MaximizeWindow(window);
+		updateSettings(settings, true);
+	}
+}
+
+bool Window::isMaximized() const
+{
+	return window != nullptr && (SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED);
 }
 
 void Window::swapBuffers()
@@ -898,16 +923,6 @@ bool Window::hasMouseFocus() const
 bool Window::isVisible() const
 {
 	return window && (SDL_GetWindowFlags(window) & SDL_WINDOW_SHOWN) != 0;
-}
-
-void Window::setMouseVisible(bool visible)
-{
-	SDL_ShowCursor(visible ? SDL_ENABLE : SDL_DISABLE);
-}
-
-bool Window::getMouseVisible() const
-{
-	return (SDL_ShowCursor(SDL_QUERY) == SDL_ENABLE);
 }
 
 void Window::setMouseGrab(bool grab)

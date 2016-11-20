@@ -32,6 +32,12 @@
 
 namespace love
 {
+
+namespace graphics
+{
+class Graphics;
+}
+
 namespace window
 {
 
@@ -108,6 +114,8 @@ public:
 	// Implements Module.
 	virtual ModuleType getModuleType() const { return M_WINDOW; }
 
+	virtual void setGraphics(graphics::Graphics *graphics) = 0;
+
 	virtual bool setWindow(int width = 800, int height = 600, WindowSettings *settings = nullptr) = 0;
 	virtual void getWindow(int &width, int &height, WindowSettings &settings) = 0;
 
@@ -143,6 +151,8 @@ public:
 	virtual void minimize() = 0;
 	virtual void maximize() = 0;
 
+	virtual bool isMaximized() const = 0;
+
 	// default no-op implementation
 	virtual void swapBuffers();
 
@@ -150,9 +160,6 @@ public:
 	virtual bool hasMouseFocus() const = 0;
 
 	virtual bool isVisible() const = 0;
-
-	virtual void setMouseVisible(bool visible) = 0;
-	virtual bool getMouseVisible() const = 0;
 
 	virtual void setMouseGrab(bool grab) = 0;
 	virtual bool isMouseGrabbed() const = 0;

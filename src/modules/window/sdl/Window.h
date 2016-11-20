@@ -41,6 +41,8 @@ public:
 	Window();
 	~Window();
 
+	void setGraphics(graphics::Graphics *graphics);
+
 	bool setWindow(int width = 800, int height = 600, WindowSettings *settings = nullptr);
 	void getWindow(int &width, int &height, WindowSettings &settings);
 
@@ -76,15 +78,14 @@ public:
 	void minimize();
 	void maximize();
 
+	bool isMaximized() const;
+
 	void swapBuffers();
 
 	bool hasFocus() const;
 	bool hasMouseFocus() const;
 
 	bool isVisible() const;
-
-	void setMouseVisible(bool visible);
-	bool getMouseVisible() const;
 
 	void setMouseGrab(bool grab);
 	bool isMouseGrabbed() const;
@@ -126,7 +127,7 @@ private:
 	bool createWindowAndContext(int x, int y, int w, int h, Uint32 windowflags, int msaa);
 
 	// Update the saved window settings based on the window's actual state.
-	void updateSettings(const WindowSettings &newsettings);
+	void updateSettings(const WindowSettings &newsettings, bool updateGraphicsViewport);
 
 	SDL_MessageBoxFlags convertMessageBoxType(MessageBoxType type) const;
 
@@ -149,6 +150,8 @@ private:
 	bool displayedWindowError;
 	bool hasSDL203orEarlier;
 	ContextAttribs contextAttribs;
+
+	StrongRef<graphics::Graphics> graphics;
 
 }; // Window
 
