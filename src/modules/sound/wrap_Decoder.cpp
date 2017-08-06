@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -19,6 +19,10 @@
  **/
 
 #include "wrap_Decoder.h"
+#include "SoundData.h"
+#include "Sound.h"
+
+#define instance() (Module::getInstance<Sound>(Module::M_SOUND))
 
 namespace love
 {
@@ -27,7 +31,7 @@ namespace sound
 
 Decoder *luax_checkdecoder(lua_State *L, int idx)
 {
-	return luax_checktype<Decoder>(L, idx, SOUND_DECODER_ID);
+	return luax_checktype<Decoder>(L, idx);
 }
 
 int w_Decoder_getChannels(lua_State *L)
@@ -58,18 +62,54 @@ int w_Decoder_getDuration(lua_State *L)
 	return 1;
 }
 
+int w_Decoder_decode(lua_State *L)
+{
+	Decoder *t = luax_checkdecoder(L, 1);
+
+	int decoded = t->decode();
+	if (decoded > 0)
+	{
+		luax_catchexcept(L, [&]() {
+			SoundData *s = instance()->newSoundData(t->getBuffer(),
+				decoded / (t->getBitDepth() / 8 * t->getChannels()),
+				t->getSampleRate(), t->getBitDepth(), t->getChannels());
+
+			luax_pushtype(L, s);
+			s->release();
+		});
+	}
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+int w_Decoder_seek(lua_State *L)
+{
+	Decoder *t = luax_checkdecoder(L, 1);
+	float offset = luaL_checknumber(L, 2);
+	if (offset < 0)
+		return luaL_argerror(L, 2, "can't seek to a negative position");
+	else if (offset == 0)
+		t->rewind();
+	else
+		t->seek(offset);
+	return 0;
+}
+
 static const luaL_Reg w_Decoder_functions[] =
 {
 	{ "getChannels", w_Decoder_getChannels },
 	{ "getBitDepth", w_Decoder_getBitDepth },
 	{ "getSampleRate", w_Decoder_getSampleRate },
 	{ "getDuration", w_Decoder_getDuration },
+	{ "decode", w_Decoder_decode },
+	{ "seek", w_Decoder_seek },
 	{ 0, 0 }
 };
 
 extern "C" int luaopen_decoder(lua_State *L)
 {
-	return luax_register_type(L, SOUND_DECODER_ID, "Decoder", w_Decoder_functions, nullptr);
+	return luax_register_type(L, &Decoder::type, w_Decoder_functions, nullptr);
 }
 
 } // sound

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -26,6 +26,8 @@ namespace love
 namespace math
 {
 
+love::Type CompressedData::type("CompressedData", &Data::type);
+
 CompressedData::CompressedData(Compressor::Format format, char *cdata, size_t compressedsize, size_t rawsize, bool own)
 	: format(format)
 	, data(nullptr)
@@ -49,9 +51,32 @@ CompressedData::CompressedData(Compressor::Format format, char *cdata, size_t co
 	}
 }
 
+CompressedData::CompressedData(const CompressedData &c)
+	: format(c.format)
+	, data(nullptr)
+	, dataSize(c.dataSize)
+	, originalSize(c.originalSize)
+{
+	try
+	{
+		data = new char[dataSize];
+	}
+	catch (std::bad_alloc &)
+	{
+		throw love::Exception("Out of memory.");
+	}
+
+	memcpy(data, c.data, dataSize);
+}
+
 CompressedData::~CompressedData()
 {
 	delete[] data;
+}
+
+CompressedData *CompressedData::clone() const
+{
+	return new CompressedData(*this);
 }
 
 Compressor::Format CompressedData::getFormat() const

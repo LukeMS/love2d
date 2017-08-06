@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -33,6 +33,8 @@ namespace love
 {
 namespace sound
 {
+
+love::Type SoundData::type("SoundData", &Data::type);
 
 SoundData::SoundData(Decoder *decoder)
 	: data(0)
@@ -106,10 +108,25 @@ SoundData::SoundData(void *d, int samples, int sampleRate, int bitDepth, int cha
 	load(samples, sampleRate, bitDepth, channels, d);
 }
 
+SoundData::SoundData(const SoundData &c)
+	: data(0)
+	, size(0)
+	, sampleRate(0)
+	, bitDepth(0)
+	, channels(0)
+{
+	load(c.getSampleCount(), c.getSampleRate(), c.getBitDepth(), c.getChannels(), c.getData());
+}
+
 SoundData::~SoundData()
 {
 	if (data != 0)
 		free(data);
+}
+
+SoundData *SoundData::clone() const
+{
+	return new SoundData(*this);
 }
 
 void SoundData::load(int samples, int sampleRate, int bitDepth, int channels, void *newData)

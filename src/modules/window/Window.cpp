@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -70,6 +70,8 @@ StringMap<Window::Setting, Window::SETTING_MAX_ENUM>::Entry Window::settingEntri
 	{"fullscreentype", SETTING_FULLSCREEN_TYPE},
 	{"vsync", SETTING_VSYNC},
 	{"msaa", SETTING_MSAA},
+	{"stencil", SETTING_STENCIL},
+	{"depth", SETTING_DEPTH},
 	{"resizable", SETTING_RESIZABLE},
 	{"minwidth", SETTING_MIN_WIDTH},
 	{"minheight", SETTING_MIN_HEIGHT},

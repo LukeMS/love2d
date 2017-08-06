@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -18,14 +18,11 @@
  * 3. This notice may not be removed or altered from any source distribution.
  **/
 
-#ifndef LOVE_GRAPHICS_OPENGL_TEXT_H
-#define LOVE_GRAPHICS_OPENGL_TEXT_H
+#pragma once
 
 // LOVE
 #include "common/config.h"
-#include "graphics/Drawable.h"
-#include "Font.h"
-#include "GLBuffer.h"
+#include "graphics/Text.h"
 
 namespace love
 {
@@ -34,70 +31,19 @@ namespace graphics
 namespace opengl
 {
 
-class Text : public Drawable
+class Text final : public love::graphics::Text
 {
 public:
 
-	Text(Font *font, const std::vector<Font::ColoredString> &text = {});
+	Text(love::graphics::Graphics *gfx, love::graphics::Font *font, const std::vector<Font::ColoredString> &text = {});
 	virtual ~Text();
 
-	void set(const std::vector<Font::ColoredString> &text);
-	void set(const std::vector<Font::ColoredString> &text, float wrap, Font::AlignMode align);
-	void set();
+protected:
 
-	int add(const std::vector<Font::ColoredString> &text, float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky);
-	int addf(const std::vector<Font::ColoredString> &text, float wrap, Font::AlignMode align, float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky);
-	void clear();
-
-	// Implements Drawable.
-	virtual void draw(float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky);
-
-	void setFont(Font *f);
-	Font *getFont() const;
-
-	/**
-	 * Gets the width of the currently set text.
-	 **/
-	int getWidth(int index = 0) const;
-
-	/**
-	 * Gets the height of the currently set text.
-	 **/
-	int getHeight(int index = 0) const;
-
-private:
-
-	struct TextData
-	{
-		Font::ColoredCodepoints codepoints;
-		float wrap;
-		Font::AlignMode align;
-		Font::TextInfo text_info;
-		bool use_matrix;
-		bool append_vertices;
-		Matrix3 matrix;
-	};
-
-	void uploadVertices(const std::vector<Font::GlyphVertex> &vertices, size_t vertoffset);
-	void regenerateVertices();
-	void addTextData(const TextData &s);
-
-	StrongRef<Font> font;
-	GLBuffer *vbo;
-
-	std::vector<Font::DrawCommand> draw_commands;
-
-	std::vector<TextData> text_data;
-
-	size_t vert_offset;
-
-	// Used so we know when the font's texture cache is invalidated.
-	uint32 texture_cache_id;
+	void drawInternal(const std::vector<Font::DrawCommand> &commands) const override;
 
 }; // Text
 
 } // opengl
 } // graphics
 } // love
-
-#endif // LOVE_GRAPHICS_OPENGL_TEXT_H

@@ -1,5 +1,5 @@
 --[[
-Copyright (c) 2006-2016 LOVE Development Team
+Copyright (c) 2006-2017 LOVE Development Team
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -106,7 +106,7 @@ function love.arg.getLow(a)
 			m = k
 		end
 	end
-	return a[m]
+	return a[m], m
 end
 
 love.arg.options = {
@@ -115,7 +115,9 @@ love.arg.options = {
 	game = { a = 1 }
 }
 
-function love.arg.parse_option(m, i)
+love.arg.optionIndices = {}
+
+function love.arg.parseOption(m, i)
 	m.set = true
 
 	if m.a > 0 then
@@ -128,7 +130,7 @@ function love.arg.parse_option(m, i)
 	return m.a
 end
 
-function love.arg.parse_options()
+function love.arg.parseOptions()
 
 	local game
 	local argc = #arg
@@ -139,16 +141,37 @@ function love.arg.parse_options()
 		local m = string.match(arg[i], "^%-%-(.+)")
 
 		if m and love.arg.options[m] then
-			i = i + love.arg.parse_option(love.arg.options[m], i+1)
+			love.arg.optionIndices[i] = true
+			i = i + love.arg.parseOption(love.arg.options[m], i+1)
 		elseif not game then
+			love.arg.optionIndices[i] = true
+			love.arg.options.game.index = i
 			game = i
 		end
 		i = i + 1
 	end
 
 	if not love.arg.options.game.set then
-		love.arg.parse_option(love.arg.options.game, game or 0)
+		love.arg.parseOption(love.arg.options.game, game or 0)
 	end
+end
+
+-- Returns the arguments that are passed to your game via love.load()
+-- arguments that were parsed as options are skipped.
+function love.arg.parseGameArguments(a)
+	local out = {}
+
+	local _, lowindex = love.arg.getLow(a)
+
+	local o = lowindex
+	for i=lowindex, #a do
+		if not love.arg.optionIndices[i] then
+			out[o] = a[i]
+			o = o + 1
+		end
+	end
+
+	return out
 end
 
 function love.createhandlers()
@@ -170,11 +193,11 @@ function love.createhandlers()
 		mousemoved = function (x,y,dx,dy,t)
 			if love.mousemoved then return love.mousemoved(x,y,dx,dy,t) end
 		end,
-		mousepressed = function (x,y,b,t)
-			if love.mousepressed then return love.mousepressed(x,y,b,t) end
+		mousepressed = function (x,y,b,t,c)
+			if love.mousepressed then return love.mousepressed(x,y,b,t,c) end
 		end,
-		mousereleased = function (x,y,b,t)
-			if love.mousereleased then return love.mousereleased(x,y,b,t) end
+		mousereleased = function (x,y,b,t,c)
+			if love.mousereleased then return love.mousereleased(x,y,b,t,c) end
 		end,
 		wheelmoved = function (x,y)
 			if love.wheelmoved then return love.wheelmoved(x,y) end
@@ -266,7 +289,7 @@ function love.boot()
 	-- This is absolutely needed.
 	require("love.filesystem")
 
-	love.arg.parse_options()
+	love.arg.parseOptions()
 
 	local o = love.arg.options
 
@@ -281,6 +304,13 @@ function love.boot()
 
 	-- Is this one of those fancy "fused" games?
 	local can_has_game = pcall(love.filesystem.setSource, exepath)
+
+	if can_has_game and love.arg.options.game.index ~= nil then
+		-- the game source is in the exe so we should pass the argument we
+		-- originally though was the game to the app
+		love.arg.optionIndices[love.arg.options.game.index] = false
+	end
+
 	local is_fused_game = can_has_game or love.arg.options.fused.set
 
 	love.filesystem.setFused(is_fused_game)
@@ -347,7 +377,7 @@ function love.init()
 			fullscreen = false,
 			fullscreentype = "desktop",
 			display = 1,
-			vsync = true,
+			vsync = 1,
 			msaa = 0,
 			borderless = false,
 			resizable = false,
@@ -476,6 +506,8 @@ function love.init()
 			fullscreentype = c.window.fullscreentype,
 			vsync = c.window.vsync,
 			msaa = c.window.msaa,
+			stencil = c.window.stencil,
+			depth = c.window.depth,
 			resizable = c.window.resizable,
 			minwidth = c.window.minwidth,
 			minheight = c.window.minheight,
@@ -494,7 +526,7 @@ function love.init()
 	end
 
 	if love.audio then
-		love.audio.setMixMode(c.audio.mixwithsystem)
+		love.audio.setMixWithSystem(c.audio.mixwithsystem)
 	end
 
 	-- Our first timestep, because window creation can take some time
@@ -516,12 +548,7 @@ function love.init()
 end
 
 function love.run()
-
-	if love.math then
-		love.math.setRandomSeed(os.time())
-	end
-
-	if love.load then love.load(arg) end
+	if love.load then love.load(love.arg.parseGameArguments(arg), arg) end
 
 	-- We don't want the first frame's dt to include time taken by love.load.
 	if love.timer then love.timer.step() end
@@ -545,17 +572,18 @@ function love.run()
 
 		-- Update dt, as we'll be passing it to update
 		if love.timer then
-			love.timer.step()
-			dt = love.timer.getDelta()
+			dt = love.timer.step()
 		end
 
 		-- Call update and draw
 		if love.update then love.update(dt) end -- will pass 0 if love.timer is disabled
 
 		if love.graphics and love.graphics.isActive() then
-			love.graphics.clear(love.graphics.getBackgroundColor())
 			love.graphics.origin()
+			love.graphics.clear(love.graphics.getBackgroundColor())
+
 			if love.draw then love.draw() end
+
 			love.graphics.present()
 		end
 
@@ -595,7 +623,7 @@ function love.errhand(msg)
 		love.mouse.setVisible(true)
 		love.mouse.setGrabbed(false)
 		love.mouse.setRelativeMode(false)
-		if love.mouse.hasCursor() then
+		if love.mouse.isCursorSupported() then
 			love.mouse.setCursor()
 		end
 	end
@@ -606,15 +634,14 @@ function love.errhand(msg)
 		end
 	end
 	if love.audio then love.audio.stop() end
-	love.graphics.reset()
-	local font = love.graphics.setNewFont(math.floor(love.window.toPixels(14)))
 
-	love.graphics.setBackgroundColor(89, 157, 220)
-	love.graphics.setColor(255, 255, 255, 255)
+	love.graphics.reset()
+	local font = love.graphics.setNewFont(14)
+
+	love.graphics.setColor(1, 1, 1, 1)
 
 	local trace = debug.traceback()
 
-	love.graphics.clear(love.graphics.getBackgroundColor())
 	love.graphics.origin()
 
 	local err = {}
@@ -635,8 +662,8 @@ function love.errhand(msg)
 	p = string.gsub(p, "%[string \"(.-)\"%]", "%1")
 
 	local function draw()
-		local pos = love.window.toPixels(70)
-		love.graphics.clear(love.graphics.getBackgroundColor())
+		local pos = 70
+		love.graphics.clear(89/255, 157/255, 220/255)
 		love.graphics.printf(p, pos, pos, love.graphics.getWidth() - pos)
 		love.graphics.present()
 	end
@@ -689,7 +716,7 @@ function love.errhand(msg)
 end
 
 local function deferErrhand(...)
-	local handler = love.errhand or error_printer
+	local handler = love.errorhandler or love.errhand or error_printer
 	return handler(...)
 end
 

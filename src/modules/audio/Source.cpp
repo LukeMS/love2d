@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -25,8 +25,10 @@ namespace love
 namespace audio
 {
 
-Source::Source(Type type)
-	: type(type)
+love::Type Source::type("Source", &Object::type);
+
+Source::Source(Type sourceType)
+	: sourceType(sourceType)
 {
 }
 
@@ -36,7 +38,7 @@ Source::~Source()
 
 Source::Type Source::getType() const
 {
-	return type;
+	return sourceType;
 }
 
 bool Source::getConstant(const char *in, Type &out)
@@ -63,6 +65,7 @@ StringMap<Source::Type, Source::TYPE_MAX_ENUM>::Entry Source::typeEntries[] =
 {
 	{"static", Source::TYPE_STATIC},
 	{"stream", Source::TYPE_STREAM},
+	{"queue",  Source::TYPE_QUEUE},
 };
 
 StringMap<Source::Type, Source::TYPE_MAX_ENUM> Source::types(Source::typeEntries, sizeof(Source::typeEntries));

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -107,6 +107,7 @@ Filesystem::Filesystem()
 	, fusedSet(false)
 {
 	requirePath = {"?.lua", "?/init.lua"};
+	cRequirePath = {"??"};
 }
 
 Filesystem::~Filesystem()
@@ -456,30 +457,6 @@ love::filesystem::File *Filesystem::newFile(const char *filename) const
 	return new File(filename);
 }
 
-FileData *Filesystem::newFileData(void *data, unsigned int size, const char *filename) const
-{
-	FileData *fd = new FileData(size, std::string(filename));
-
-	// Copy the data into FileData.
-	memcpy(fd->getData(), data, size);
-
-	return fd;
-}
-
-FileData *Filesystem::newFileData(const char *b64, const char *filename) const
-{
-	int size = (int) strlen(b64);
-	int outsize = 0;
-	char *dst = b64_decode(b64, size, outsize);
-	FileData *fd = new FileData(outsize, std::string(filename));
-
-	// Copy the data into FileData.
-	memcpy(fd->getData(), dst, outsize);
-	delete [] dst;
-
-	return fd;
-}
-
 const char *Filesystem::getWorkingDirectory()
 {
 	if (cwd.empty())
@@ -609,7 +586,7 @@ bool Filesystem::isDirectory(const char *dir) const
 	else
 		return false;
 #else
-	return PHYSFS_isDirectory(dir) != 0;
+	return PHYSFS_isDirectory(dir) != 0 && !isSymlink(dir);
 #endif
 }
 
@@ -618,7 +595,15 @@ bool Filesystem::isFile(const char *file) const
 	if (!PHYSFS_isInit())
 		return false;
 
-	return PHYSFS_exists(file) && !isDirectory(file);
+#ifdef LOVE_USE_PHYSFS_2_1
+	PHYSFS_Stat stat = {};
+	if (PHYSFS_stat(file, &stat))
+		return stat.filetype == PHYSFS_FILETYPE_REGULAR;
+	else
+		return false;
+#else
+	return PHYSFS_exists(file) && !isDirectory(file) && !isSymlink(file);
+#endif
 }
 
 bool Filesystem::isSymlink(const char *filename) const
@@ -771,6 +756,11 @@ bool Filesystem::areSymlinksEnabled() const
 std::vector<std::string> &Filesystem::getRequirePath()
 {
 	return requirePath;
+}
+
+std::vector<std::string> &Filesystem::getCRequirePath()
+{
+	return cRequirePath;
 }
 
 void Filesystem::allowMountingForPath(const std::string &path)

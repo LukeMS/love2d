@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -25,7 +25,7 @@ namespace love
 
 Data *luax_checkdata(lua_State *L, int idx)
 {
-	return luax_checktype<Data>(L, idx, DATA_ID);
+	return luax_checktype<Data>(L, idx);
 }
 
 int w_Data_getString(lua_State *L)
@@ -59,7 +59,7 @@ const luaL_Reg w_Data_functions[] =
 
 int w_Data_open(lua_State *L)
 {
-	luax_register_type(L, DATA_ID, "Data", w_Data_functions, nullptr);
+	luax_register_type(L, &Data::type, w_Data_functions, nullptr);
 	return 0;
 }
 

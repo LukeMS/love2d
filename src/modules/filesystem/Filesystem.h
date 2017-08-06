@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -60,6 +60,8 @@ namespace filesystem
 class Filesystem : public Module
 {
 public:
+
+	static love::Type type;
 
 	Filesystem();
 	virtual ~Filesystem();
@@ -128,13 +130,7 @@ public:
 	 * @param size The size of the data.
 	 * @param filename The full filename used to file type identification.
 	 **/
-	virtual FileData *newFileData(void *data, unsigned int size, const char *filename) const = 0;
-
-	/**
-	 * Creates a new FileData object from base64 data.
-	 * @param b64 The base64 data.
-	 **/
-	virtual FileData *newFileData(const char *b64, const char *filename) const = 0;
+	virtual FileData *newFileData(const void *data, size_t size, const char *filename) const;
 
 	/**
 	 * Gets the current working directory.
@@ -261,6 +257,7 @@ public:
 	// Require path accessors
 	// Not const because it's R/W
 	virtual std::vector<std::string> &getRequirePath() = 0;
+	virtual std::vector<std::string> &getCRequirePath() = 0;
 
 	/**
 	 * Allows a full (OS-dependent) path to be used with Filesystem::mount.

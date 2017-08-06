@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -24,19 +24,19 @@
 namespace love
 {
 
-static love::Type extractudatatype(lua_State *L, int idx)
+static love::Type *extractudatatype(lua_State *L, int idx)
 {
 	Proxy *u = (Proxy *)lua_touserdata(L, idx);
 
-	if (u == nullptr || u->type <= INVALID_ID || u->type >= TYPE_MAX_ENUM)
-		return INVALID_ID;
+	if (u == nullptr || u->type == nullptr)
+		return nullptr;
 
 	// We could get rid of the dynamic_cast for more performance, but it would
 	// be less safe...
 	if (dynamic_cast<Object *>(u->object) != nullptr)
 		return u->type;
 
-	return INVALID_ID;
+	return nullptr;
 }
 
 Variant::Variant()
@@ -77,15 +77,16 @@ Variant::Variant(void *userdata)
 	data.userdata = userdata;
 }
 
-Variant::Variant(love::Type udatatype, void *userdata)
+Variant::Variant(love::Type *udatatype, void *userdata)
 	: type(FUSERDATA)
 	, udatatype(udatatype)
 {
-	if (udatatype != INVALID_ID)
+	if (udatatype != nullptr)
 	{
 		Proxy *p = (Proxy *) userdata;
 		data.userdata = p->object;
-		p->object->retain();
+		if (p->object)
+			p->object->retain();
 	}
 	else
 		data.userdata = userdata;
@@ -105,7 +106,7 @@ Variant::Variant(const Variant &v)
 {
 	if (type == STRING)
 		data.string->retain();
-	else if (type == FUSERDATA)
+	else if (type == FUSERDATA && udatatype != nullptr && data.userdata != nullptr)
 		((love::Object *) data.userdata)->retain();
 	else if (type == TABLE)
 		data.table->retain();
@@ -127,7 +128,8 @@ Variant::~Variant()
 		data.string->release();
 		break;
 	case FUSERDATA:
-		((love::Object *) data.userdata)->release();
+		if (udatatype != nullptr && data.userdata != nullptr)
+			((love::Object *) data.userdata)->release();
 		break;
 	case TABLE:
 		data.table->release();
@@ -141,15 +143,15 @@ Variant &Variant::operator = (const Variant &v)
 {
 	if (v.type == STRING)
 		v.data.string->retain();
-	else if (v.type == FUSERDATA)
+	else if (v.type == FUSERDATA && v.udatatype != nullptr && v.data.userdata != nullptr)
 		((love::Object *) v.data.userdata)->retain();
 	else if (v.type == TABLE)
 		v.data.table->retain();
 
 	if (type == STRING)
 		data.string->release();
-	else if (type == FUSERDATA)
-		((love::Object *) v.data.userdata)->release();
+	else if (type == FUSERDATA && udatatype != nullptr && data.userdata != nullptr)
+		((love::Object *) data.userdata)->release();
 	else if (type == TABLE)
 		data.table->release();
 
@@ -241,8 +243,8 @@ void Variant::toLua(lua_State *L) const
 		lua_pushlightuserdata(L, data.userdata);
 		break;
 	case FUSERDATA:
-		if (udatatype != INVALID_ID)
-			luax_pushtype(L, udatatype, (love::Object *) data.userdata);
+		if (udatatype != nullptr)
+			luax_pushtype(L, *udatatype, (love::Object *) data.userdata);
 		else
 			lua_pushlightuserdata(L, data.userdata);
 		// I know this is not the same

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -34,12 +34,14 @@ namespace window
 namespace sdl
 {
 
-class Window : public love::window::Window
+class Window final : public love::window::Window
 {
 public:
 
 	Window();
 	~Window();
+
+	void setGraphics(graphics::Graphics *graphics);
 
 	bool setWindow(int width = 800, int height = 600, WindowSettings *settings = nullptr);
 	void getWindow(int &width, int &height, WindowSettings &settings);
@@ -88,11 +90,18 @@ public:
 	void setMouseGrab(bool grab);
 	bool isMouseGrabbed() const;
 
-	void getPixelDimensions(int &w, int &h) const;
+	int getWidth() const;
+	int getHeight() const;
+	int getPixelWidth() const;
+	int getPixelHeight() const;
+
 	void windowToPixelCoords(double *x, double *y) const;
 	void pixelToWindowCoords(double *x, double *y) const;
 
-	double getPixelScale() const;
+	void windowToDPICoords(double *x, double *y) const;
+	void DPIToWindowCoords(double *x, double *y) const;
+
+	double getPixelDensity() const;
 
 	double toPixels(double x) const;
 	void toPixels(double wx, double wy, double &px, double &py) const;
@@ -118,10 +127,11 @@ private:
 		bool debug;
 	};
 
-	void setGLFramebufferAttributes(int msaa, bool sRGB);
+	void setGLFramebufferAttributes(int msaa, bool sRGB, bool stencil, int depth);
 	void setGLContextAttributes(const ContextAttribs &attribs);
 	bool checkGLVersion(const ContextAttribs &attribs, std::string &outversion);
-	bool createWindowAndContext(int x, int y, int w, int h, Uint32 windowflags, int msaa);
+	std::vector<ContextAttribs> getContextAttribsList() const;
+	bool createWindowAndContext(int x, int y, int w, int h, Uint32 windowflags, int msaa, bool stencil, int depth);
 
 	// Update the saved window settings based on the window's actual state.
 	void updateSettings(const WindowSettings &newsettings, bool updateGraphicsViewport);
@@ -146,6 +156,9 @@ private:
 
 	bool displayedWindowError;
 	bool hasSDL203orEarlier;
+	ContextAttribs contextAttribs;
+
+	StrongRef<graphics::Graphics> graphics;
 
 }; // Window
 

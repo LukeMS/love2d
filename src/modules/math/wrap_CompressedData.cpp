@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -29,7 +29,16 @@ namespace math
 
 CompressedData *luax_checkcompresseddata(lua_State *L, int idx)
 {
-	return luax_checktype<CompressedData>(L, idx, MATH_COMPRESSED_DATA_ID);
+	return luax_checktype<CompressedData>(L, idx);
+}
+
+int w_CompressedData_clone(lua_State *L)
+{
+	CompressedData *t = luax_checkcompresseddata(L, 1), *c = nullptr;
+	luax_catchexcept(L, [&](){ c = t->clone(); });
+	luax_pushtype(L, c);
+	c->release();
+	return 1;
 }
 
 int w_CompressedData_getFormat(lua_State *L)
@@ -46,6 +55,7 @@ int w_CompressedData_getFormat(lua_State *L)
 
 static const luaL_Reg w_CompressedData_functions[] =
 {
+	{ "clone", w_CompressedData_clone },
 	{ "getFormat", w_CompressedData_getFormat },
 	{ 0, 0 },
 };
@@ -53,7 +63,7 @@ static const luaL_Reg w_CompressedData_functions[] =
 
 extern "C" int luaopen_compresseddata(lua_State *L)
 {
-	return luax_register_type(L, MATH_COMPRESSED_DATA_ID, "CompressedData", w_Data_functions, w_CompressedData_functions, nullptr);
+	return luax_register_type(L, &CompressedData::type, w_Data_functions, w_CompressedData_functions, nullptr);
 }
 
 } // math

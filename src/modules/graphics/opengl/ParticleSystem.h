@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -23,38 +23,33 @@
 
 // LOVE
 #include "graphics/ParticleSystem.h"
-#include "GLBuffer.h"
 
 namespace love
 {
 namespace graphics
 {
+
+class Graphics;
+
 namespace opengl
 {
 
-class ParticleSystem : public love::graphics::ParticleSystem
+class ParticleSystem final : public love::graphics::ParticleSystem
 {
 public:
 
-	ParticleSystem(Texture *texture, uint32 buffer);
+	ParticleSystem(Graphics *gfx, Texture *texture, uint32 buffer);
 	ParticleSystem(const ParticleSystem &p);
 
 	virtual ~ParticleSystem();
 
 	ParticleSystem *clone() override;
-	void setBufferSize(uint32 size) override;
-	void draw(float x, float y, float angle, float sx, float sy, float ox, float oy, float kx, float ky) override;
 
 private:
 
-	void createVertices(size_t numparticles);
+	void drawInternal() const override;
 
-	// array of transformed vertex data for all particles, for drawing
-	Vertex *particleVerts;
-
-	// Vertex index buffer.
-	QuadIndices quadIndices;
-};
+}; // ParticleSystem
 
 } // opengl
 } // graphics

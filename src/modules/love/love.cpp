@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -168,11 +168,11 @@ static const luaL_Reg modules[] = {
 #if defined(LOVE_ENABLE_SYSTEM)
 	{ "love.system", luaopen_love_system },
 #endif
-#if defined(LOVE_ENABLE_TIMER)
-	{ "love.timer", luaopen_love_timer },
-#endif
 #if defined(LOVE_ENABLE_THREAD)
 	{ "love.thread", luaopen_love_thread },
+#endif
+#if defined(LOVE_ENABLE_TIMER)
+	{ "love.timer", luaopen_love_timer },
 #endif
 #if defined(LOVE_ENABLE_TOUCH)
 	{ "love.touch", luaopen_love_touch },
@@ -225,9 +225,9 @@ static int w_love_isVersionCompatible(lua_State *L)
 		version = luaL_checkstring(L, 1);
 	else
 	{
-		int major = (int) luaL_checknumber(L, 1);
-		int minor = (int) luaL_checknumber(L, 2);
-		int rev   = (int) luaL_checknumber(L, 3);
+		int major = (int) luaL_checkinteger(L, 1);
+		int minor = (int) luaL_checkinteger(L, 2);
+		int rev   = (int) luaL_checkinteger(L, 3);
 
 		// Convert the numbers to a string, since VERSION_COMPATIBILITY is an
 		// array of version strings.

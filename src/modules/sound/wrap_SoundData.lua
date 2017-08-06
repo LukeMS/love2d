@@ -3,7 +3,7 @@ R"luastring"--(
 -- There is a matching delimiter at the bottom of the file.
 
 --[[
-Copyright (c) 2006-2016 LOVE Development Team
+Copyright (c) 2006-2017 LOVE Development Team
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -47,6 +47,7 @@ local _getSampleCount = SoundData.getSampleCount
 local _getSampleRate = SoundData.getSampleRate
 local _getChannels = SoundData.getChannels
 local _getDuration = SoundData.getDuration
+local _release = SoundData.release
 
 -- Table which holds SoundData objects as keys, and information about the objects
 -- as values. Uses weak keys so the SoundData objects can still be GC'd properly.
@@ -136,6 +137,11 @@ end
 
 function SoundData:getDuration()
 	return objectcache[self].duration
+end
+
+function SoundData:release()
+	objectcache[self] = nil
+	return _release(self)
 end
 
 -- DO NOT REMOVE THE NEXT LINE. It is used to load this file as a C++ string.

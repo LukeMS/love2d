@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -146,7 +146,7 @@ public:
 		{
 			// Account for our custom header's size in the decompress arguments.
 			int result = LZ4_decompress_safe(data + headersize, rawbytes,
-			                                 dataSize - headersize, rawsize);
+			                                 (int) (dataSize - headersize), rawsize);
 
 			if (result < 0)
 			{

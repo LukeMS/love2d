@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -39,7 +39,16 @@ namespace sound
 
 SoundData *luax_checksounddata(lua_State *L, int idx)
 {
-	return luax_checktype<SoundData>(L, idx, SOUND_SOUND_DATA_ID);
+	return luax_checktype<SoundData>(L, idx);
+}
+
+int w_SoundData_clone(lua_State *L)
+{
+	SoundData *t = luax_checksounddata(L, 1), *c = nullptr;
+	luax_catchexcept(L, [&](){ c = t->clone(); });
+	luax_pushtype(L, c);
+	c->release();
+	return 1;
 }
 
 int w_SoundData_getChannels(lua_State *L)
@@ -98,6 +107,7 @@ int w_SoundData_getSample(lua_State *L)
 
 static const luaL_Reg w_SoundData_functions[] =
 {
+	{ "clone", w_SoundData_clone },
 	{ "getChannels", w_SoundData_getChannels },
 	{ "getBitDepth", w_SoundData_getBitDepth },
 	{ "getSampleRate", w_SoundData_getSampleRate },
@@ -110,9 +120,9 @@ static const luaL_Reg w_SoundData_functions[] =
 
 extern "C" int luaopen_sounddata(lua_State *L)
 {
-	int ret = luax_register_type(L, SOUND_SOUND_DATA_ID, "SoundData", w_Data_functions, w_SoundData_functions, nullptr);
+	int ret = luax_register_type(L, &SoundData::type, w_Data_functions, w_SoundData_functions, nullptr);
 
-	luax_gettypemetatable(L, SOUND_SOUND_DATA_ID);
+	luax_gettypemetatable(L, SoundData::type);
 
 	// Load and execute SoundData.lua, sending the metatable as an argument.
 	if (lua_istable(L, -1))

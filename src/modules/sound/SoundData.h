@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -35,13 +35,17 @@ class SoundData : public love::Data
 {
 public:
 
+	static love::Type type;
+
 	SoundData(Decoder *decoder);
 	SoundData(int samples, int sampleRate, int bitDepth, int channels);
 	SoundData(void *d, int samples, int sampleRate, int bitDepth, int channels);
+	SoundData(const SoundData &c);
 
 	virtual ~SoundData();
 
 	// Implements Data.
+	SoundData *clone() const;
 	void *getData() const;
 	size_t getSize() const;
 

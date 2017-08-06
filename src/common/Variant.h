@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -53,7 +53,7 @@ public:
 	Variant(double number);
 	Variant(const char *string, size_t len);
 	Variant(void *userdata);
-	Variant(love::Type udatatype, void *userdata);
+	Variant(love::Type *udatatype, void *userdata);
 	Variant(std::vector<std::pair<Variant, Variant>> *table);
 	Variant(const Variant &v);
 	Variant(Variant &&v);
@@ -101,7 +101,7 @@ private:
 	static const int MAX_SMALL_STRING_LENGTH = 15;
 
 	Type type;
-	love::Type udatatype;
+	love::Type *udatatype;
 
 	union Data
 	{

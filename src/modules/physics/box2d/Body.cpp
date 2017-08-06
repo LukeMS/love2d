@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -439,7 +439,7 @@ int Body::getFixtureList(lua_State *L) const
 		Fixture *fixture = (Fixture *)Memoizer::find(f);
 		if (!fixture)
 			throw love::Exception("A fixture has escaped Memoizer!");
-		luax_pushtype(L, PHYSICS_FIXTURE_ID, fixture);
+		luax_pushtype(L, fixture);
 		lua_rawseti(L, -2, i);
 		i++;
 	}
@@ -487,7 +487,7 @@ int Body::getContactList(lua_State *L) const
 		else
 			contact->retain();
 
-		luax_pushtype(L, PHYSICS_CONTACT_ID, contact);
+		luax_pushtype(L, contact);
 		contact->release();
 		lua_rawseti(L, -2, i);
 		i++;

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -37,10 +37,13 @@ class CompressedData : public love::Data
 {
 public:
 
+	static love::Type type;
+
 	/**
 	 * Constructor just stores already-compressed data in the object.
 	 **/
 	CompressedData(Compressor::Format format, char *cdata, size_t compressedsize, size_t rawsize, bool own = true);
+	CompressedData(const CompressedData &c);
 	virtual ~CompressedData();
 
 	/**
@@ -55,6 +58,7 @@ public:
 	size_t getDecompressedSize() const;
 
 	// Implements Data.
+	CompressedData *clone() const override;
 	void *getData() const override;
 	size_t getSize() const override;
 

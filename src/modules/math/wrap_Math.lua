@@ -3,7 +3,7 @@ R"luastring"--(
 -- There is a matching delimiter at the bottom of the file.
 
 --[[
-Copyright (c) 2006-2016 LOVE Development Team
+Copyright (c) 2006-2017 LOVE Development Team
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -95,7 +95,7 @@ end
 
 local function gammaToLinear(c)
 	if c ~= nil then
-		return tonumber(ffifuncs.gammaToLinear(c / 255)) * 255
+		return tonumber(ffifuncs.gammaToLinear(c))
 	end
 	return c
 end
@@ -110,7 +110,7 @@ end
 
 local function linearToGamma(c)
 	if c ~= nil then
-		return tonumber(ffifuncs.linearToGamma(c / 255)) * 255
+		return tonumber(ffifuncs.linearToGamma(c))
 	end
 	return c
 end

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2016 LOVE Development Team
+ * Copyright (c) 2006-2017 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -30,7 +30,7 @@ namespace box2d
 
 Fixture *luax_checkfixture(lua_State *L, int idx)
 {
-	Fixture *f = luax_checktype<Fixture>(L, idx, PHYSICS_FIXTURE_ID);
+	Fixture *f = luax_checktype<Fixture>(L, idx);
 	if (!f->isValid())
 		luaL_error(L, "Attempt to use destroyed fixture.");
 	return f;
@@ -111,7 +111,7 @@ int w_Fixture_getBody(lua_State *L)
 	Body *body = t->getBody();
 	if (body == 0)
 		return 0;
-	luax_pushtype(L, PHYSICS_BODY_ID, body);
+	luax_pushtype(L, body);
 	return 1;
 }
 
@@ -124,19 +124,19 @@ int w_Fixture_getShape(lua_State *L)
 	switch (shape->getType())
 	{
 	case Shape::SHAPE_EDGE:
-		luax_pushtype(L, PHYSICS_EDGE_SHAPE_ID, shape);
+		luax_pushtype(L, shape);
 		break;
 	case Shape::SHAPE_CHAIN:
-		luax_pushtype(L, PHYSICS_CHAIN_SHAPE_ID, shape);
+		luax_pushtype(L, shape);
 		break;
 	case Shape::SHAPE_CIRCLE:
-		luax_pushtype(L, PHYSICS_CIRCLE_SHAPE_ID, shape);
+		luax_pushtype(L, shape);
 		break;
 	case Shape::SHAPE_POLYGON:
-		luax_pushtype(L, PHYSICS_POLYGON_SHAPE_ID, shape);
+		luax_pushtype(L, shape);
 		break;
 	default:
-		luax_pushtype(L, PHYSICS_SHAPE_ID, shape);
+		luax_pushtype(L, shape);
 		break;
 	}
 	return 1;
@@ -164,9 +164,9 @@ int w_Fixture_setFilterData(lua_State *L)
 {
 	Fixture *t = luax_checkfixture(L, 1);
 	int v[3];
-	v[0] = (int) luaL_checknumber(L, 2);
-	v[1] = (int) luaL_checknumber(L, 3);
-	v[2] = (int) luaL_checknumber(L, 4);
+	v[0] = (int) luaL_checkinteger(L, 2);
+	v[1] = (int) luaL_checkinteger(L, 3);
+	v[2] = (int) luaL_checkinteger(L, 4);
 	t->setFilterData(v);
 	return 0;
 }
@@ -249,7 +249,7 @@ int w_Fixture_getGroupIndex(lua_State *L)
 int w_Fixture_setGroupIndex(lua_State *L)
 {
 	Fixture *t = luax_checkfixture(L, 1);
-	int i = (int) luaL_checknumber(L, 2);
+	int i = (int) luaL_checkinteger(L, 2);
 	t->setGroupIndex(i);
 	return 0;
 }
@@ -263,7 +263,7 @@ int w_Fixture_destroy(lua_State *L)
 
 int w_Fixture_isDestroyed(lua_State *L)
 {
-	Fixture *f = luax_checktype<Fixture>(L, 1, PHYSICS_FIXTURE_ID);
+	Fixture *f = luax_checktype<Fixture>(L, 1);
 	luax_pushboolean(L, !f->isValid());
 	return 1;
 }
@@ -302,7 +302,7 @@ static const luaL_Reg w_Fixture_functions[] =
 
 extern "C" int luaopen_fixture(lua_State *L)
 {
-	return luax_register_type(L, PHYSICS_FIXTURE_ID, "Fixture", w_Fixture_functions, nullptr);
+	return luax_register_type(L, &Fixture::type, w_Fixture_functions, nullptr);
 }
 
 } // box2d
